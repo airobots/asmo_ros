@@ -1,0 +1,4 @@
+scripts/backup
+msg/backup
+srv/backup
+*.pyc

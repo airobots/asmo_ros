@@ -1,0 +1,4 @@
+<launch>
+  <node pkg="asmo" type="attention.py" name="attention" respawn="true" cwd="node" />
+  <node pkg="asmo" type="gateways.py" name="gateways" respawn="true" cwd="node" />
+</launch>
