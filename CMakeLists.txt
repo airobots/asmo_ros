@@ -46,11 +46,12 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  SetupProcess.msg
-  AttentionBoost.msg
-  PriorityLevel.msg
   NonReflex.msg
   Reflex.msg
+  MessageAction.msg
+  MessageNonReflex.msg
+  MessageReflex.msg
+  NameValue.msg
   Winners.msg
 )
 

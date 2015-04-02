@@ -1,50 +1,58 @@
 #!/usr/bin/env python
 
 '''
-    Node 2 Example
-    --------------
+    2nd Example of ASMO Process
+    ---------------------------
     Author:
         Rony Novianto (rony@ronynovianto.com)
-        University of Technology Sydney
+        University of Technology Sydney, Australia
 '''
 
 import rospy
-import std_msgs.msg
 import geometry_msgs.msg
+import yaml
 import asmo.msg
 
-publishers = {}
+_process_name = 'approach_person_by_shortest_time'
+velocity = 0.0
 
-def setup_process():
-    # Sleep to let the publisher finish initializing
-    rospy.sleep(0.25)
-    msg = asmo.msg.SetupProcess(['/asmo/process/approach_person/turtle1/cmd_vel'])
-    publishers['setup_process'].publish(msg)
-    
-def handle_emotion_reaction(r):
-    global publishers
-    twist = geometry_msgs.msg.Twist()
+def handle_person_location(point32):
+    global velocity
     # Turn the robot to face the person
-    if r.x > 0:
-        twist.angular.z = 0.25
+    if point32.x > 0:
+        velocity = 0.25
     else:
-        twist.angular.z = -0.25
+        velocity = -0.25
+        
+def run(publishers):
+    twist = geometry_msgs.msg.Twist()
+    twist.angular.z = velocity
     publishers['cmd_vel'].publish(twist)
-    publishers['probability'].publish(r.y)
-    msg = asmo.msg.AttentionBoost('approach_person', r.y*100, 0)
-    publishers['attention_boost'].publish(msg)
     
-def init():
-    rospy.init_node('plan2')
-    rospy.Subscriber('/emotion/reaction', geometry_msgs.msg.Point32, handle_emotion_reaction)
-    publishers['probability'] = rospy.Publisher('/plan2/probability', std_msgs.msg.Float32, queue_size=10)
-    #publishers['/turtle1/cmd_vel'] = rospy.Publisher('/turtle1/cmd_vel', geometry_msgs.msg.Twist, queue_size=10)
-    publishers['cmd_vel'] = rospy.Publisher('/asmo/process/approach_person/turtle1/cmd_vel', geometry_msgs.msg.Twist, queue_size=10)
-    publishers['setup_process'] = rospy.Publisher('/asmo/setup_process', asmo.msg.SetupProcess, queue_size=10)
-    publishers['attention_boost'] = rospy.Publisher('/asmo/attention_boost', asmo.msg.AttentionBoost, queue_size=10)
-    setup_process()
-    print '[ OK ] Start plan2'
-    rospy.spin()
+    message_actions = []
+    message_actions.append(asmo.msg.MessageAction(
+        topic_name = '/turtle1/cmd_vel',
+        message = '"{}"'.format(str(twist))
+    ))
+    publishers['message_non_reflex'].publish(
+        name = _process_name,
+        attention_value = 10.0,
+        message_actions = message_actions
+    )
     
+    
+def main():
+    rospy.init_node(_process_name)
+    publishers = {}
+    #publishers['cmd_vel'] = rospy.Publisher('/turtle1/cmd_vel', geometry_msgs.msg.Twist, queue_size=10)
+    publishers['message_non_reflex'] = rospy.Publisher('/asmo/message_non_reflex', asmo.msg.MessageNonReflex, queue_size=10)
+    rospy.Subscriber('/person/position', geometry_msgs.msg.Point32, handle_person_location)
+    print('[ OK ] Start {process_name}'.format(process_name=_process_name))
+    while not rospy.is_shutdown():
+        run(publishers)
+        
 if __name__ == '__main__':
-    init()
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass
