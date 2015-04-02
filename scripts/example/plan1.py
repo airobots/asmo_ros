@@ -10,7 +10,6 @@
 
 import rospy
 import geometry_msgs.msg
-import yaml
 import asmo.msg
 
 _process_name = 'approach_person_by_shortest_distance'
@@ -20,19 +19,20 @@ def handle_person_location(point32):
     global velocity
     # Turn the robot to face the person
     if point32.x > 0:
-        velocity = -0.25
+        velocity = -1.0
     else:
-        velocity = 0.25
+        velocity = 1.0
         
 def run(publishers):
     twist = geometry_msgs.msg.Twist()
+    twist.linear.x = 1.0
     twist.angular.z = velocity
     #publishers['cmd_vel'].publish(twist)
     
     message_actions = []
     message_actions.append(asmo.msg.MessageAction(
         topic_name = '/turtle1/cmd_vel',
-        message = '"{}"'.format(str(twist))
+        message = str(twist)
     ))
     publishers['message_non_reflex'].publish(
         name = _process_name,
@@ -50,6 +50,7 @@ def main():
     print('[ OK ] Start {process_name}'.format(process_name=_process_name))
     while not rospy.is_shutdown():
         run(publishers)
+        rospy.sleep(0.1)
         
 if __name__ == '__main__':
     try:

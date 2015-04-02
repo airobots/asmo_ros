@@ -56,53 +56,52 @@ def get_publisher(topic_name, topic_type):
     if topic_type == '':
         msg_class = rostopic.get_topic_class(topic_name)[0]
         if not msg_class:
-            raise ROSTopicException('[ Error ] no publisher or subscriber for {}'.format(topic_name))
+            raise rostopic.ROSTopicException('[ Error ] no subscriber or publisher for {}'.format(topic_name))
     else:
-        try:
-            msg_class = roslib.message.get_message_class(topic_type)
-        except:
-            raise ROSTopicException('[ Error ] invalid topic type: {}'.format(topic_type))
-            
+        msg_class = roslib.message.get_message_class(topic_type)
+        
     if topic_name not in publishers:
         publishers[topic_name] = rospy.Publisher(topic_name, msg_class, queue_size=10)
         
-    return (publishers[topic_name], pub_args)
+    return (publishers[topic_name], msg_class)
     
-def publish_message(pub, msg_class, message_str):
+def publish_message(pub, msg_class, pub_args):
     msg = msg_class()
-    
-    try:
-        now = rospy.get_rostime()
-        keys = {'now': now, 'auto': std_msgs.msg.Header(stamp=now)}
-        roslib.message.fill_message_args(msg, pub_args, keys=keys)
-    except roslib.message.ROSMessageException as e:
-        raise ROSTopicException(str(e)+"\n\nArgs are: [%s]"%roslib.message.get_printable_message_args(msg))
-        
+    now = rospy.get_rostime()
+    keys = {'now': now, 'auto': std_msgs.msg.Header(stamp=now)}
+    roslib.message.fill_message_args(msg, pub_args, keys=keys)
     pub.publish(msg)
     
 def redirect_message(winner_names):
     for name in winner_names:
+        if name not in message_dict: continue
         for ma in message_dict[name].message_actions:
-            (pub, msg_class) = get_publisher(ma.topic_name, ma.topic_type)
-            pub_args = [yaml.load(ma.message)]
-            publish_message(pub, msg_class, pub_args)
-            
+            try:
+                (pub, msg_class) = get_publisher(ma.topic_name, ma.topic_type)
+                pub_args = [yaml.load(ma.message)]
+                publish_message(pub, msg_class, pub_args)
+            except:
+                raise
+                
 # Handle subscription functions
 
 def handle_process(msg):
-    process = yaml.load(str(msg))
+    for key in msg.__slots__:
+        process[key] = msg.__getattribute__(key)
     post_process(process)
     
 def handle_message_process(msg):
     global message_dict
-    process = yaml.load(str(msg))
+    message_dict[msg.name] = msg
+    process = {}
+    for key in msg.__slots__:
+        process[key] = msg.__getattribute__(key)
     del process['message_actions']
     process['required_resources'] = []
     process['actions'] = []
     for ma in msg.message_actions:
         if ma.topic_name not in process['required_resources']:
             process['required_resources'].append(ma.topic_name)
-    message_dict[msg.name] = msg
     post_process(process)
     
 def handle_name_value(msg):
@@ -121,15 +120,19 @@ def handle_remove_process(msg):
     request_session.delete(url)
     
 def handle_compete(msg):
+    global message_dict
     url = '{host_uri}/compete'.format(host_uri=host_uri)
     future = request_session.post(url)
     # Non-blocking: future.result() is a callback
     json_data = future.result().json()
     if 'error' not in json_data:
-        winners = asmo.msg.Winners(*json_data)
+        json_data['names'] = json_data['winners'].keys()
+        del json_data['winners']
+        winners = asmo.msg.Winners(**json_data)
         publishers['/asmo/winners'].publish(winners)
         if allow_message_actions_execution:
             redirect_message(json_data['names'])
+            message_dict = {}
         if allow_custom_actions_execution:
             for action in json_data['actions']: os.system(action + ' &')
             
@@ -142,12 +145,13 @@ def main():
         allow_periodic_competition = rospy.get_param('/asmo/allow_periodic_competition')
     else:
         allow_periodic_competition = True
-    # periodic_rate is in Hz
-    if rospy.has_param('/asmo/periodic_rate'):
-        periodic_rate = rospy.get_param('/asmo/periodic_rate')
+    if rospy.has_param('/asmo/periodic_milliseconds'):
+        periodic_milliseconds = rospy.get_param('/asmo/periodic_milliseconds')
     else:
-        periodic_rate = 1000
+        periodic_milliseconds = 110
         
+    # periodic_rate is in Hz
+    periodic_rate = 1000 / periodic_milliseconds
     rospy.init_node(_process_name)
     publishers['/asmo/winners'] = rospy.Publisher('/asmo/winners', asmo.msg.Winners, queue_size=10)
     rospy.Subscriber('/asmo/non_reflex', asmo.msg.NonReflex, handle_process)
