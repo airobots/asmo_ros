@@ -1,3 +1,4 @@
+```
 # terminal A
 roscore
 rosrun turtlesim turtlesim_node
@@ -23,3 +24,4 @@ rostopic pub --rate=1 /emotion/reaction geometry_msgs/Point32 '{x: -10.0, y: 0.4
 
 # Test
 rostopic pub --rate=1 /emotion/reaction geometry_msgs/Point32 '{x: -10.0, y: 0.6, z: 0.0}'
+```
