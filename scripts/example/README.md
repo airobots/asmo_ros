@@ -1,27 +1,32 @@
 ```
-# terminal A
+# Terminal A
+# Run ASMO web
 roscore
 rosrun turtlesim turtlesim_node
-# terminal B
+rostopic echo /turtle1/cmd_vel
+# Terminal B
+# Reverse any changes to not use ASMO
 rosrun asmo plan1.py
-rostopic pub --rate=1 /person/position geometry_msgs/Point32 'x: 5.0'
-# terminal C
-# reverse the modification of plan2.py
+rostopic pub --rate=20 /person/position geometry_msgs/Point32 'x: 2.0'
+# Terminal C
+# Reverse any changes to not use ASMO
 rosrun asmo plan2.py
-rostopic pub --rate=1 /emotion/reaction geometry_msgs/Point32 '{x: -10.0, y: 0.4, z: 0.0}'
+rostopic pub --rate=20 /fastlane/position geometry_msgs/Point32 'x: -2.0'
 
-# terminal B
-rosrun asmo plan1.py /turtle1/cmd_vel:=/asmo/plan1/approach_person/turtle1/cmd_vel
-rosrun asmo aplan1.py
-# terminal C
-# modify plan2.py
+# Terminate plan1.py and plan2.py
+# Modify plan1.py and plan2 to use ASMO
+
+# Terminal B
+rosrun asmo plan1.py
+# Terminal C
 rosrun asmo plan2.py
-# terminal A
-roslaunch asmo asmo.launch
+# Terminal A
+# Rerun turtlesim
+rosrun asmo gateway.py
 
-rostopic pub --rate=1 /person/position std_msgs/Float32 'data: 10.0'
-rostopic pub --rate=1 /emotion/reaction geometry_msgs/Point32 '{x: -10.0, y: 0.4, z: 0.0}'
 
-# Test
-rostopic pub --rate=1 /emotion/reaction geometry_msgs/Point32 '{x: -10.0, y: 0.6, z: 0.0}'
+# Terminate plan1.py and plan2.py
+# Modify the position of the person to 'x: 4.0'
+# Run plan1.py and plan2.py
+rostopic pub --rate=1 /person/position geometry_msgs/Point32 'x: 4.0'
 ```

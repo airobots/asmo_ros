@@ -1,3 +1,5 @@
+.project
+.pydevproject
 scripts/backup
 msg/backup
 srv/backup

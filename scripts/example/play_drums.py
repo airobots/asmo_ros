@@ -1,39 +1,35 @@
 #!/usr/bin/env python
 
 '''
-    2nd example of ASMO Process
+    Play drums example
     ---------------------------
     Author:
         Rony Novianto (rony@ronynovianto.com)
         University of Technology Sydney, Australia
 '''
 
+import math
+import random
 import rospy
 import geometry_msgs.msg
 import asmo.msg
 
-_process_name = 'approach_person_by_shortest_time'
+_process_name = 'play_drums'
 attention_value = 0.0
-publishers = {}
+subjective_weight = 0.0
+time = 0
 
-def handle_person_position(point32):
-    global attention_value
-    # Demand higher attention when the distance is greater than 3 metres
-    if abs(point32.x) > 3:
-        attention_value = 60.0
-    else:
-        attention_value = 25.0
-        
-def handle_fastlane_position(point32):
+def run(publishers):
+    global attention_value, time
     twist = geometry_msgs.msg.Twist()
     twist.linear.x = 1.0
-    # Fast lane: turn right if the person is on the left and vice versa
-    if point32.x > 0:
-        twist.angular.z = 1.0
-    else:
-        twist.angular.z = -1.0
-        
+    twist.angular.z = -1.0
     #publishers['cmd_vel'].publish(twist)
+    
+    time -= 1
+    if time < 0:
+        time = random.randint(0, 120)
+        attention_value = 0.5 * (100 - 100 / (1 + math.exp(-0.06 * (time - 60)))) + 0.5 * subjective_weight
     
     message_actions = []
     message_actions.append(asmo.msg.MessageAction(
@@ -47,15 +43,15 @@ def handle_fastlane_position(point32):
     )
     
 def main():
-    global publishers
+    publishers = {}
     rospy.init_node(_process_name)
     #publishers['cmd_vel'] = rospy.Publisher('/turtle1/cmd_vel', geometry_msgs.msg.Twist, queue_size=10)
     publishers['message_non_reflex'] = rospy.Publisher('/asmo/message_non_reflex', asmo.msg.MessageNonReflex, queue_size=10)
-    rospy.Subscriber('/person/position', geometry_msgs.msg.Point32, handle_person_position)
-    rospy.Subscriber('/fastlane/position', geometry_msgs.msg.Point32, handle_fastlane_position)
     print('[ OK ] Start {process_name}'.format(process_name=_process_name))
-    rospy.spin()
-    
+    while not rospy.is_shutdown():
+        run(publishers)
+        rospy.sleep(0.1)
+        
 if __name__ == '__main__':
     try:
         main()
